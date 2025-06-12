@@ -35,7 +35,7 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <Heart className="h-8 w-8 text-blue-400" />
-            <span className="text-xl font-bold text-gray-900">GiftBox</span>
+            <span className="text-xl font-bold text-gray-900">Givebox</span>
           </Link>
 
           {/* Navigation Links - Desktop */}

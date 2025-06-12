@@ -53,7 +53,7 @@ const UserProfile = () => {
         id: id || "1",
         name: "Sarah Martinez",
         avatar: "/placeholder.svg",
-        bio: "Suka banget berbagi sama orang lain. Percaya kalo barang yang gak kepake bisa jadi berkah buat yang lain. Aktif donasi sejak 2023 dan seneng ketemu orang-orang baik di GiftBox!",
+        bio: "Suka banget berbagi sama orang lain. Percaya kalo barang yang gak kepake bisa jadi berkah buat yang lain. Aktif donasi sejak 2023 dan seneng ketemu orang-orang baik di Givebox!",
         location: "Jakarta Selatan",
         joinDate: "Maret 2023",
         verified: true,
@@ -480,7 +480,7 @@ const UserProfile = () => {
             <CardDescription>
               {isOwnProfile
                 ? "Badge yang udah kamu raih dari aktivitas donasi"
-                : "Badge yang diraih karena kontribusi di GiftBox"}
+                : "Badge yang diraih karena kontribusi di Givebox"}
             </CardDescription>
           </CardHeader>
           <CardContent>
