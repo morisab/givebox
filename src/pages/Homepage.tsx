@@ -229,11 +229,11 @@ const Homepage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Donasi Unggulan
+              Donasi Baru Masuk
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Temukan barang-barang keren yang dibagikan oleh temen-temen
-              sekitar
+              Lihat berbagai barang menarik yang baru saja didonasikan oleh
+              orang-orang di sekitarmu!
             </p>
           </div>
 
@@ -273,15 +273,6 @@ const Homepage = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-
-          <div className="text-center">
-            <Link to="/products">
-              <Button size="lg" variant="outline">
-                Lihat Semua Donasi
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
