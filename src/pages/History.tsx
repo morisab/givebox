@@ -31,6 +31,7 @@ import {
   XCircle,
   AlertCircle,
   Star,
+  Circle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -39,7 +40,9 @@ const History = () => {
 
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
-
+  
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
   const donationHistory = [
     {
       id: 1,
@@ -70,25 +73,11 @@ const History = () => {
     },
     {
       id: 3,
-      title: "Set Peralatan Dapur",
-      description: "Microwave, toaster, dan coffee maker",
-      image: "/placeholder.svg",
-      recipientName: "Lina Kusuma",
-      recipientAvatar: "/placeholder.svg",
-      status: "pending",
-      date: "2024-01-12",
-      location: "Surabaya",
-      rating: null,
-      feedback: null,
-    },
-    {
-      id: 4,
       title: "Laptop untuk Pelajar",
       description: "Laptop bekas pakai untuk belajar online",
       image: "/placeholder.svg",
-      recipientName: "Budi Santoso",
       recipientAvatar: "/placeholder.svg",
-      status: "cancelled",
+      status: "available",
       date: "2024-01-08",
       location: "Jakarta Pusat",
       rating: null,
@@ -130,7 +119,7 @@ const History = () => {
       image: "/placeholder.svg",
       donorName: "Sinta Dewi",
       donorAvatar: "/placeholder.svg",
-      status: "in-progress",
+      status: "in-progress-review",
       date: "2024-01-13",
       location: "Medan",
       rating: null,
@@ -142,12 +131,10 @@ const History = () => {
     switch (status) {
       case "completed":
         return "bg-green-100 text-green-800 border-green-200";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "in-progress":
+      case "available":
         return "bg-blue-50 text-blue-600 border-blue-100";
-      case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200";
+      case "in-progress-review":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -159,12 +146,12 @@ const History = () => {
         return <CheckCircle className="h-4 w-4" />;
       case "pending":
         return <Clock className="h-4 w-4" />;
-      case "in-progress":
-        return <AlertCircle className="h-4 w-4" />;
-      case "cancelled":
-        return <XCircle className="h-4 w-4" />;
+      case "in-progress-review":
+        return <Star className="h-4 w-4 text-yellow-400" />;
+      case "available":
+        return <Circle className="h-4 w-4" />;
       default:
-        return <Clock className="h-4 w-4" />;
+        return <Circle className="h-4 w-4" />;
     }
   };
 
@@ -172,14 +159,12 @@ const History = () => {
     switch (status) {
       case "completed":
         return "Selesai";
-      case "pending":
-        return "Menunggu";
-      case "in-progress":
-        return "Proses";
-      case "cancelled":
-        return "Dibatalkan";
+      case "in-progress-review":
+        return "Menunggu Review";
+      case "available":
+        return "Tersedia";
       default:
-        return "Menunggu";
+        return "Tersedia";
     }
   };
 
@@ -289,9 +274,8 @@ const History = () => {
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
               <SelectItem value="completed">Selesai</SelectItem>
-              <SelectItem value="pending">Menunggu</SelectItem>
-              <SelectItem value="in-progress">Proses</SelectItem>
-              <SelectItem value="cancelled">Dibatalkan</SelectItem>
+              <SelectItem value="in-progress-review">Menunggu Review</SelectItem>
+              <SelectItem value="available">Tersedia</SelectItem>
             </SelectContent>
           </Select>
 
@@ -336,6 +320,7 @@ const History = () => {
                         </Badge>
                       </div>
 
+                      {item.recipientAvatar && item.recipientName && (
                       <div className="flex items-center gap-4 mb-3">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
@@ -360,6 +345,7 @@ const History = () => {
                           {new Date(item.date).toLocaleDateString("id-ID")}
                         </div>
                       </div>
+                      )}
 
                       {item.status === "completed" && item.rating && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -487,18 +473,47 @@ const History = () => {
                         </div>
                       )}
 
-                      <div className="flex gap-2 mt-4">
-                        {item.status === "in-progress" && (
-                          <Link to="/chat">
-                            <Button size="sm">Chat Donatur</Button>
-                          </Link>
-                        )}
-                        {item.status === "completed" && !item.rating && (
-                          <Button variant="outline" size="sm">
-                            Kasih Rating
+                        {item.status === "in-progress-review" && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <h4 className="font-medium text-sm mb-2">Beri Rating & Ulasan</h4>
+                          <div className="flex items-center gap-2 mb-3">
+
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setSelectedRating(star)}
+                                onMouseEnter={() => setHoveredRating(star)}
+                                onMouseLeave={() => setHoveredRating(0)}
+                                className="focus:outline-none"
+                              >
+                                <Star
+                                  className={`h-6 w-6 cursor-pointer ${
+                                    star <= (hoveredRating || selectedRating)
+                                      ? "fill-yellow-400 text-yellow-400" 
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-sm text-gray-600">Pilih rating</span>
+                          </div>
+                          
+                          <textarea
+                          className="w-full p-2 text-sm border border-gray-300 rounded-md mb-3"
+                          rows={3}
+                          placeholder="Tulis ulasan tentang donasi yang kamu terima..."
+                          />
+                          
+                          <div className="flex justify-end">
+                          <Button size="sm">
+                            Kirim Review
                           </Button>
+                          </div>
+                        </div>
                         )}
-                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Layout from "@/components/Layout";
@@ -26,34 +26,80 @@ import {
   Award,
   Clock,
 } from "lucide-react";
+import axios from "axios";
+import api from "@/lib/api";
 
-const UserProfile = () => {
+interface UserResponse {
+  status: boolean;
+  message: string;
+  data: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone_number: string;
+    city: string;
+  };
+}
+
+const UserProfile = () => {  
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const { id } = useParams();
   const isOwnProfile = id === "me";
 
-  // Mock user data - in real app, this would be fetched based on id
-  const user = isOwnProfile
-    ? {
-        id: "me",
-        name: "Budiman",
-        avatar: "/placeholder.svg",
-        bio: "Mahasiswa biasa dengan hobi menebar kebaikan",
-        location: "Kediri",
-        joinDate: "Juni 2025",
-        verified: false,
-        rating: 0,
-        totalRatings: 0,
-        totalDonations: 1,
-        totalReceived: 0,
-        completedTransactions: 0,
-        responseTime: "Belum ada data",
-        lastActive: "Online",
+  const title = user
+    ? isOwnProfile
+      ? "Profil Saya"
+      : `Profil ${user.name}`
+    : isOwnProfile
+    ? "Profil Saya"
+    : "Profil User";
+  usePageTitle(title);
+
+useEffect(() => {
+  const fetchUser = async () => {
+    if (isOwnProfile) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("access_token");
+        console.log("Token:", token);
+
+        const res = await api.get<UserResponse>("/user/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = res.data.data;
+        setUser({
+          id: data.id,
+          name: data.full_name,
+          avatar: "/placeholder.svg",
+          bio: "Belum ada bio",
+          location: data.city,
+          joinDate: "Belum diketahui",
+          verified: true,
+          rating: 0,
+          totalRatings: 0,
+          totalDonations: 0,
+          totalReceived: 0,
+          completedTransactions: 0,
+          responseTime: "Belum ada data",
+          lastActive: "Online",
+        });
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+        setError("Gagal memuat profil.");
+      } finally {
+        setLoading(false);
       }
-    : {
+    } else {
+      // user dummy tetap
+      setUser({
         id: id || "1",
         name: "Sarah Martinez",
         avatar: "/placeholder.svg",
-        bio: "Suka banget berbagi sama orang lain. Percaya kalo barang yang gak kepake bisa jadi berkah buat yang lain. Aktif donasi sejak 2023 dan seneng ketemu orang-orang baik di Givebox!",
+        bio: "...",
         location: "Jakarta Selatan",
         joinDate: "Maret 2023",
         verified: true,
@@ -64,9 +110,24 @@ const UserProfile = () => {
         completedTransactions: 31,
         responseTime: "< 1 jam",
         lastActive: "2 jam yang lalu",
-      };
+      });
+    }
+  };
 
-  usePageTitle(isOwnProfile ? "Profil Saya" : `Profil ${user.name}`);
+  fetchUser();
+  }, [id, isOwnProfile]);
+
+if (loading) {
+    return <div className="text-center mt-10">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center mt-10 text-red-500">{error}</div>;
+  }
+
+  if (!user) {
+    return <div className="text-center mt-10">Tidak ada data user.</div>;
+  }
 
   const stats = [
     {

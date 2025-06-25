@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
 import { Eye, EyeOff, Heart } from "lucide-react";
 
 const Register = () => {
+  const navigate = useNavigate();
   usePageTitle("Daftar");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -51,11 +53,44 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle registration logic here
-    console.log("Registration attempt:", formData);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (formData.password !== formData.confirmPassword) {
+    alert("Password dan konfirmasi tidak sama!");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/user/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone_number: formData.phone,
+        city: formData.location,
+        password: formData.password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("Registrasi berhasil! Silakan login.");
+      navigate("/masuk");
+    } else {
+      alert("Gagal daftar: " + data.message || "Terjadi kesalahan.");
+    }
+  } catch (error) {
+    console.error("Error saat daftar:", error);
+    alert("Gagal konek ke server.");
+  }
+};
+
 
   return (
     <Layout showNavigation={false}>

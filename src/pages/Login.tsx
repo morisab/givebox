@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Layout from "@/components/Layout";
@@ -16,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Heart } from "lucide-react";
 
 const Login = () => {
+  const navigate = useNavigate();
   usePageTitle("Masuk");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -31,10 +33,39 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
+
+    try {
+      const response = await fetch("/api/user/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status) {
+        const { access_token, refresh_token } = data.data;
+
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+
+        alert("Login berhasil!");
+        navigate("/");
+      } else {
+        alert("Gagal login: " + (data.message || "Cek email dan password"));
+      }
+    } catch (error) {
+      console.error("Error saat login:", error);
+      alert("Gagal konek ke server.");
+    }
   };
 
   return (

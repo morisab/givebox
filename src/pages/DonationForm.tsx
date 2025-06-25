@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/card";
 import {
   Select,
-  SelectContent,
   SelectItem,
+  SelectContent,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -32,6 +32,19 @@ import {
   ImageIcon,
   AlertCircle,
 } from "lucide-react";
+import api from "@/lib/api";
+
+const categories = [
+  { value: "01cef7e0-e9b0-486c-be62-514dd275a7a0", label: "Pakaian & Aksesoris" },
+  { value: "ec339ced-3eaa-4b7d-86d8-771f08482568", label: "Elektronik" },
+  { value: "7a466f8f-662a-4edc-b737-47d647bd6a5a", label: "Buku & Pendidikan" },
+  { value: "d45d87fc-35a6-43c3-8ccd-1827eab3618c", label: "Rumah Tangga" },
+  { value: "08815789-63f4-4aad-9b27-2a1bc4dece42", label: "Mainan & Permainan" },
+  { value: "088df485-5c59-4fc3-8e08-591bc7cd7b47", label: "Furnitur" },
+  { value: "006f3ef2-14e5-4058-80ab-3cc92e3a232a", label: "Olahraga & Rekreasi" },
+  { value: "877a31b6-737d-4ca0-b760-912e090ff9d5", label: "Barang Bayi & Anak" },
+  { value: "102eefe9-a8f7-4967-985c-e8c0927bc155", label: "Lainnya" },
+];
 
 const DonationForm = () => {
   usePageTitle("Berbagi Donasi");
@@ -53,36 +66,25 @@ const DonationForm = () => {
   });
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
-
-  const categories = [
-    { value: "clothing", label: "Pakaian & Aksesoris" },
-    { value: "electronics", label: "Elektronik" },
-    { value: "books", label: "Buku & Pendidikan" },
-    { value: "household", label: "Rumah Tangga" },
-    { value: "toys", label: "Mainan & Permainan" },
-    { value: "furniture", label: "Furnitur" },
-    { value: "sports", label: "Olahraga & Rekreasi" },
-    { value: "baby", label: "Barang Bayi & Anak" },
-    { value: "other", label: "Lainnya" },
-  ];
+  const [error, setError] = useState<string | null>(null);
 
   const conditions = [
-    { value: "new", label: "Baru" },
-    { value: "like-new", label: "Seperti Baru" },
-    { value: "good", label: "Kondisi Bagus" },
-    { value: "fair", label: "Kondisi Lumayan" },
-    { value: "needs-repair", label: "Perlu Perbaikan Kecil" },
+    { value: "5", label: "Baru" },
+    { value: "4", label: "Seperti Baru" },
+    { value: "3", label: "Kondisi Bagus" },
+    { value: "2", label: "Kondisi Lumayan" },
+    { value: "1", label: "Perlu Perbaikan Kecil" },
   ];
 
   const locations = [
-    { value: "jakarta", label: "Jakarta" },
-    { value: "bandung", label: "Bandung" },
-    { value: "surabaya", label: "Surabaya" },
-    { value: "medan", label: "Medan" },
-    { value: "semarang", label: "Semarang" },
-    { value: "makassar", label: "Makassar" },
-    { value: "palembang", label: "Palembang" },
-    { value: "yogyakarta", label: "Yogyakarta" },
+    { value: "Jakarta", label: "Jakarta" },
+    { value: "Bandung", label: "Bandung" },
+    { value: "Surabaya", label: "Surabaya" },
+    { value: "Medan", label: "Medan" },
+    { value: "Semarang", label: "Semarang" },
+    { value: "Makassar", label: "Makassar" },
+    { value: "Palembang", label: "Palembang" },
+    { value: "Yogyakarta", label: "Yogyakarta" },
   ];
 
   const handleInputChange = (
@@ -140,12 +142,68 @@ const DonationForm = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log("Donation form submitted:", formData);
-    // Navigate to success page or products page
-    navigate("/donasi");
+    setError(null);
+
+    // Validate required fields
+    if (!formData.title.trim()) {
+      setError("Judul donasi harus diisi.");
+      return;
+    }
+    if (!formData.description.trim()) {
+      setError("Deskripsi donasi harus diisi.");
+      return;
+    }
+    if (!formData.category) {
+      setError("Kategori harus dipilih.");
+      return;
+    }
+    if (!formData.condition) {
+      setError("Kondisi barang harus dipilih.");
+      return;
+    }
+    if (!formData.location) {
+      setError("Kota harus dipilih.");
+      return;
+    }
+
+    // Map formData to API payload
+    const payload = {
+      name: formData.title.trim(),
+      description: formData.description.trim(),
+      category_id: formData.category,
+      condition: parseInt(formData.condition, 10),
+      quantity_description: formData.quantity.trim() || null,
+      pick_city: formData.location,
+      pick_address: formData.exactLocation.trim() || null,
+      picking_status:
+        formData.pickupAvailable && formData.deliveryAvailable
+          ? "both"
+          : formData.pickupAvailable
+          ? "pick"
+          : formData.deliveryAvailable
+          ? "delivery"
+          : "pick", // Default to "pick" if neither is selected
+      delivery_time: formData.preferredPickupTime.trim() || null,
+      is_urgent: formData.urgentNeed,
+      additional_note: formData.additionalNotes.trim() || null,
+      // Images are not included as per your note
+    };
+
+    try {
+      const res = await api.post("/donation/donated-item/open", payload);
+      console.log("Donation created:", (res as any).data?.data);
+      alert("Donasi berhasil diposting!");
+      navigate("/donasi");
+    } catch (err: any) {
+      console.error("Gagal membuat donasi:", err);
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Gagal membuat donasi. Silakan coba lagi.";
+      setError(errorMessage);
+    }
   };
 
   return (
@@ -164,6 +222,13 @@ const DonationForm = () => {
             gak kepake lagi. Isi form di bawah buat posting donasi kamu.
           </p>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information */}
@@ -207,9 +272,9 @@ const DonationForm = () => {
                 <div className="space-y-2">
                   <Label htmlFor="category">Kategori *</Label>
                   <Select
-                    onValueChange={(value) =>
-                      handleSelectChange("category", value)
-                    }
+                    onValueChange={(value) => handleSelectChange("category", value)}
+                    required
+                    value={formData.category}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kategori" />
@@ -230,6 +295,7 @@ const DonationForm = () => {
                     onValueChange={(value) =>
                       handleSelectChange("condition", value)
                     }
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kondisi" />
@@ -270,7 +336,7 @@ const DonationForm = () => {
               </CardTitle>
               <CardDescription>
                 Tambahin foto biar yang mau nerima bisa liat barang kamu
-                (maksimal 5 foto)
+                (maksimal 5 foto, tidak diunggah ke server)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -287,7 +353,8 @@ const DonationForm = () => {
                 <div className="space-y-2">
                   <p className="text-lg font-medium">Upload Foto</p>
                   <p className="text-gray-600">
-                    Drag dan drop file ke sini, atau klik buat pilih
+                    Drag dan drop file ke sini, atau klik buat pilih (hanya untuk
+                    pratinjau)
                   </p>
                   <input
                     type="file"
@@ -305,7 +372,6 @@ const DonationForm = () => {
                 </div>
               </div>
 
-              {/* Uploaded Images */}
               {uploadedImages.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {uploadedImages.map((image, index) => (
@@ -351,6 +417,7 @@ const DonationForm = () => {
                     onValueChange={(value) =>
                       handleSelectChange("location", value)
                     }
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kota kamu" />

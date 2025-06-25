@@ -13,8 +13,9 @@ import { cn } from "@/lib/utils";
 
 const Navigation = () => {
   const location = useLocation();
-  // Simulate logged in state - in real app, this would come from auth context/store
-  const isLoggedIn = true;
+
+  const isLoggedIn = !!localStorage.getItem("access_token");
+
   const currentUser = {
     name: "Budiman",
     avatar: "/placeholder.svg",
@@ -63,24 +64,36 @@ const Navigation = () => {
           {/* Auth Buttons / Profile */}
           <div className="flex items-center space-x-4">
             {isLoggedIn ? (
-              <Link to="/profil/me">
+              <>
+                <Link to="/profil/me">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={currentUser.avatar} />
+                      <AvatarFallback>
+                        {currentUser.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline">Profil</span>
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="flex items-center gap-2"
+                  onClick={() => {
+                    localStorage.removeItem("access_token");
+                    window.location.href = "/masuk";
+                  }}
                 >
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={currentUser.avatar} />
-                    <AvatarFallback>
-                      {currentUser.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden sm:inline">Profile</span>
+                  Keluar
                 </Button>
-              </Link>
+              </>
             ) : (
               <>
                 <Link to="/masuk">

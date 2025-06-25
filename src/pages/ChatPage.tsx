@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
@@ -9,145 +10,191 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Send, Paperclip, Smile, Circle, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 const ChatPage = () => {
   usePageTitle("Chat");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const messagesEndRef = useRef(null);
 
-  const [selectedChat, setSelectedChat] = useState(1);
+  // Pastikan initial state adalah array
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [showGiveItemButton, setShowGiveItemButton] = useState(true); // Show when someone requested an item
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [error, setError] = useState(null);
 
-  const chatList = [
-    {
-      id: 1,
-      name: "Sarah Martinez",
-      avatar: "/placeholder.svg",
-      lastMessage: "Hai! Jaket musim dinginnya masih ada gak?",
-      time: "2 menit lalu",
-      unread: 2,
-      online: true,
-      productTitle: "Koleksi Jaket Musim Dingin",
-      hasRequested: true, // User has requested this item
-      itemStatus: "available", // available, given, completed
-    },
-    {
-      id: 2,
-      name: "Ahmad Rahman",
-      avatar: "/placeholder.svg",
-      lastMessage: "Makasih banget buat bukunya!",
-      time: "1 jam lalu",
-      unread: 0,
-      online: false,
-      productTitle: "Buku Pendidikan Anak",
-      hasRequested: false,
-      itemStatus: "completed",
-    },
-    {
-      id: 3,
-      name: "Lina Kusuma",
-      avatar: "/placeholder.svg",
-      lastMessage: "Kapan nih enaknya ambil barangnya?",
-      time: "3 jam lalu",
-      unread: 1,
-      online: true,
-      productTitle: "Set Peralatan Dapur",
-      hasRequested: true,
-      itemStatus: "given", // Already given, arranging pickup
-    },
-    {
-      id: 4,
-      name: "Budi Santoso",
-      avatar: "/placeholder.svg",
-      lastMessage: "Oke! Nanti aku dateng besok jam 2 siang ya",
-      time: "Kemarin",
-      unread: 0,
-      online: false,
-      productTitle: "Laptop untuk Pelajar",
-      hasRequested: false,
-      itemStatus: "completed",
-    },
-  ];
+  // Check if redirected from ProductDetails with a new conversation
+  const newConversation = location.state?.newConversation;
 
-  const messages = [
-    {
-      id: 1,
-      senderId: 2,
-      senderName: "Sarah Martinez",
-      content:
-        "Hai! Aku liat postingan kamu tentang jaket musim dingin. Masih ada gak?",
-      time: "10:30",
-      isMe: false,
-    },
-    {
-      id: 2,
-      senderId: 1,
-      senderName: "Me",
-      content: "Masih dong! Aku punya 5 jaket dengan berbagai ukuran.",
-      time: "10:32",
-      isMe: true,
-    },
-    {
-      id: 3,
-      senderId: 2,
-      senderName: "Sarah Martinez",
-      content:
-        "Wah bagus banget! Aku kelola shelter lokal nih dan lagi persiapan buat musim dingin. Bisa ceritain lebih detail gak soal ukurannya?",
-      time: "10:35",
-      isMe: false,
-    },
-    {
-      id: 4,
-      senderId: 1,
-      senderName: "Me",
-      content:
-        "Tentu! Ada 2 dewasa ukuran L, 1 dewasa ukuran M, 1 anak ukuran 8, sama 1 anak ukuran 6. Semua masih bagus banget kondisinya.",
-      time: "10:37",
-      isMe: true,
-    },
-    {
-      id: 5,
-      senderId: 2,
-      senderName: "Sarah Martinez",
-      content:
-        "Perfect banget! Ukuran-ukuran itu bakal sangat membantu. Kapan enaknya aku ambil?",
-      time: "10:40",
-      isMe: false,
-    },
-    {
-      id: 6,
-      senderId: 1,
-      senderName: "Me",
-      content:
-        "Aku free hari kerja dari jam 9 pagi sampai 5 sore. Besok sore gimana?",
-      time: "10:42",
-      isMe: true,
-    },
-    {
-      id: 7,
-      senderId: 2,
-      senderName: "Sarah Martinez",
-      content: "Hai! Jaket musim dinginnya masih ada gak?",
-      time: "Baru aja",
-      isMe: false,
-    },
-  ];
+  // Fetch conversations
+  useEffect(() => {
+    const fetchConversations = async () => {
+      setLoadingConversations(true);
+      setError(null);
+      try {
+        const res = await api.get("/chat/conversation");
+        
+        // Lebih defensive dalam menghandle response
+        const responseData = res.data;
+        let conversationData = [];
+        
+        if (responseData && typeof responseData === 'object' && 'data' in responseData && Array.isArray((responseData as any).data)) {
+          conversationData = (responseData as any).data;
+        } else if (responseData && Array.isArray(responseData)) {
+          conversationData = responseData;
+        }
+        
+        console.log("Conversations data:", conversationData);
+        setConversations(conversationData);
+        
+        // If redirected from ProductDetails, select the new conversation
+        if (newConversation && conversationData.length > 0) {
+          const matchingConvo = conversationData.find(
+            (convo) => convo.id === newConversation.id
+          );
+          if (matchingConvo) {
+            setSelectedConversationId(matchingConvo.id);
+          }
+        } else if (conversationData.length > 0) {
+          // Select the first conversation by default
+          setSelectedConversationId(conversationData[0].id);
+        }
+      } catch (err) {
+        console.error("Gagal memuat daftar percakapan:", err);
+        setError("Gagal memuat daftar percakapan");
+        setConversations([]); // Pastikan tetap array saat error
+      } finally {
+        setLoadingConversations(false);
+      }
+    };
 
-  const selectedChatData = chatList.find((chat) => chat.id === selectedChat);
+    fetchConversations();
+  }, [newConversation]);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      // Handle sending message
-      console.log("Sending message:", newMessage);
+  // Fetch messages for the selected conversation
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    const fetchMessages = async () => {
+      setLoadingMessages(true);
+      setError(null);
+      try {
+        const res = await api.get(
+          `/chat/conversation/${selectedConversationId}/message`,
+          {
+            params: { page: 1, per_page: 10 },
+          }
+        );
+        
+        // Defensive handling untuk messages juga
+        const responseData = res.data;
+        let messageData = [];
+        
+        if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+          const nestedData = (responseData as any).data;
+          if (nestedData && typeof nestedData === 'object' && 'data' in nestedData && Array.isArray((nestedData as any).data)) {
+            messageData = (nestedData as any).data;
+          } else if (Array.isArray(nestedData)) {
+            messageData = nestedData;
+          }
+        } else if (Array.isArray(responseData)) {
+          messageData = responseData;
+        }
+        
+        console.log("Messages data:", messageData);
+        setMessages(messageData);
+      } catch (err) {
+        console.error("Gagal memuat pesan:", err);
+        setError("Gagal memuat pesan");
+        setMessages([]); // Pastikan tetap array saat error
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedConversationId]);
+
+  // Scroll to the bottom of messages when they update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversationId) return;
+
+    try {
+      const res = await api.post("/chat/send", {
+        conversation_id: selectedConversationId,
+        message_content: newMessage,
+      });
+      
+      const responseData = res.data;
+      const newMsg = (responseData && typeof responseData === 'object' && 'data' in responseData) 
+        ? (responseData as any).data 
+        : responseData;
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: newMsg.id,
+          message_content: newMsg.message_content,
+          message_created_at: newMsg.message_created_at,
+          is_mine: true,
+        },
+      ]);
       setNewMessage("");
+      
+      // Update conversation's latest message
+      setConversations((prev) =>
+        prev.map((convo) =>
+          convo.id === selectedConversationId
+            ? {
+                ...convo,
+                latest_message_content: newMsg.message_content,
+                latest_message_created_at: newMsg.message_created_at,
+              }
+            : convo
+        )
+      );
+    } catch (err) {
+      console.error("Gagal mengirim pesan:", err);
+      alert("Gagal mengirim pesan");
     }
   };
 
-  const handleGiveItem = () => {
-    // Handle giving item to the requester
-    console.log("Giving item to:", selectedChatData?.name);
-    setShowGiveItemButton(false);
-    // In real app, this would update the database and send a notification
+  // Handle giving item (placeholder; assumes an API endpoint)
+  const handleGiveItem = async () => {
+    if (!selectedConversationId) return;
+
+    try {
+      await api.post("/donation/give-item", {
+        conversation_id: selectedConversationId,
+      });
+      
+      setConversations((prev) =>
+        prev.map((convo) =>
+          convo.id === selectedConversationId
+            ? { ...convo, itemStatus: "given" }
+            : convo
+        )
+      );
+      alert("Barang berhasil diberikan!");
+    } catch (err) {
+      console.error("Gagal memberikan barang:", err);
+      alert("Gagal memberikan barang");
+    }
   };
+
+  // Gunakan defensive programming untuk find
+  const selectedConversation = Array.isArray(conversations) 
+    ? conversations.find((convo) => convo.id === selectedConversationId)
+    : null;
 
   return (
     <Layout>
@@ -163,59 +210,68 @@ const ChatPage = () => {
 
               {/* Scrollable Chat List */}
               <div className="flex-1 overflow-y-auto">
-                <div className="space-y-0">
-                  {chatList.map((chat) => (
-                    <div
-                      key={chat.id}
-                      className={cn(
-                        "flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors",
-                        selectedChat === chat.id &&
-                          "bg-blue-50 border-r-2 border-blue-400",
-                      )}
-                      onClick={() => setSelectedChat(chat.id)}
-                    >
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={chat.avatar} />
-                          <AvatarFallback>
-                            {chat.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        {chat.online && (
-                          <Circle className="absolute -bottom-1 -right-1 h-4 w-4 fill-green-500 text-green-500" />
+                {loadingConversations ? (
+                  <div className="p-4 text-center text-gray-600">
+                    Memuat percakapan...
+                  </div>
+                ) : error ? (
+                  <div className="p-4 text-center text-red-600">{error}</div>
+                ) : !Array.isArray(conversations) || conversations.length === 0 ? (
+                  <div className="p-4 text-center text-gray-600">
+                    Tidak ada percakapan
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {conversations.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className={cn(
+                          "flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors",
+                          selectedConversationId === chat.id &&
+                            "bg-blue-50 border-r-2 border-blue-400"
                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold text-sm truncate">
-                            {chat.name}
-                          </h3>
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                        onClick={() => setSelectedConversationId(chat.id)}
+                      >
+                        <div className="relative">
+                          <Avatar>
+                            <AvatarImage src="/placeholder.svg" />
+                            <AvatarFallback>
+                              {chat.message_receiver_name
+                                ?.split(" ")
+                                .map((n) => n[0])
+                                .join("") || "NN"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-semibold text-sm truncate">
+                              {chat.message_receiver_name || "Unknown"}
+                            </h3>
                             <span className="text-xs text-gray-500">
-                              {chat.time}
+                              {chat.latest_message_created_at
+                                ? new Date(
+                                    chat.latest_message_created_at
+                                  ).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : ""}
                             </span>
                           </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-600 truncate">
+                              {chat.latest_message_content || "Tidak ada pesan"}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            {chat.donated_item_name || "Item tidak diketahui"}
+                          </Badge>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-600 truncate">
-                            {chat.lastMessage}
-                          </p>
-                          {chat.unread > 0 && (
-                            <div className="bg-blue-400 text-white text-xs rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ml-2">
-                              {chat.unread}
-                            </div>
-                          )}
-                        </div>
-                        <Badge variant="secondary" className="text-xs mt-1">
-                          {chat.productTitle}
-                        </Badge>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -225,43 +281,41 @@ const ChatPage = () => {
             <div className="h-full flex flex-col">
               {/* Fixed Chat Header */}
               <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
+                {selectedConversation ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage src={selectedChatData?.avatar} />
+                        <AvatarImage src="/placeholder.svg" />
                         <AvatarFallback>
-                          {selectedChatData?.name
-                            .split(" ")
+                          {selectedConversation.message_receiver_name
+                            ?.split(" ")
                             .map((n) => n[0])
-                            .join("")}
+                            .join("") || "NN"}
                         </AvatarFallback>
                       </Avatar>
-                      {selectedChatData?.online && (
-                        <Circle className="absolute -bottom-1 -right-1 h-4 w-4 fill-green-500 text-green-500" />
-                      )}
+                      <div>
+                        <h3 className="font-semibold">
+                          {selectedConversation.message_receiver_name || "Unknown"}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Terakhir online{" "}
+                          {selectedConversation.latest_message_created_at
+                            ? new Date(
+                                selectedConversation.latest_message_created_at
+                              ).toLocaleString("id-ID", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })
+                            : "Tidak diketahui"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">
-                        {selectedChatData?.name}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {selectedChatData?.online
-                          ? "Online"
-                          : "Terakhir online 2 jam lalu"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {selectedChatData?.productTitle && (
-                  <div className="mt-2 flex items-center justify-between">
-                    <Badge variant="outline" className="text-xs">
-                      Tentang: {selectedChatData.productTitle}
-                    </Badge>
-                    <div className="h-6 flex items-center">
-                      {selectedChatData?.hasRequested &&
-                        selectedChatData?.itemStatus === "available" &&
-                        showGiveItemButton && (
+                    <div className="mt-2 flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">
+                        Tentang: {selectedConversation.donated_item_name || "Item tidak diketahui"}
+                      </Badge>
+                      <div className="h-6 flex items-center">
+                        {selectedConversation?.itemStatus === "available" && (
                           <Button
                             size="sm"
                             onClick={handleGiveItem}
@@ -271,76 +325,105 @@ const ChatPage = () => {
                             Berikan Barang
                           </Button>
                         )}
-                      {selectedChatData?.itemStatus === "given" && (
-                        <Badge className="bg-orange-100 text-orange-800 text-xs h-6 flex items-center">
-                          Barang Sudah Diberikan
-                        </Badge>
-                      )}
-                      {selectedChatData?.itemStatus === "completed" && (
-                        <Badge className="bg-green-100 text-green-800 text-xs h-6 flex items-center">
-                          Transaksi Selesai
-                        </Badge>
-                      )}
+                        {selectedConversation?.itemStatus === "given" && (
+                          <Badge className="bg-orange-100 text-orange-800 text-xs h-6 flex items-center">
+                            Barang Sudah Diberikan
+                          </Badge>
+                        )}
+                        {selectedConversation?.itemStatus === "completed" && (
+                          <Badge className="bg-green-100 text-green-800 text-xs h-6 flex items-center">
+                            Transaksi Selesai
+                          </Badge>
+                        )}
+                      </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-gray-600">
+                    Pilih percakapan untuk melihat pesan
                   </div>
                 )}
               </div>
 
               {/* Scrollable Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      message.isMe ? "justify-end" : "justify-start",
-                    )}
-                  >
+                {loadingMessages ? (
+                  <div className="text-center text-gray-600">Memuat pesan...</div>
+                ) : error ? (
+                  <div className="text-center text-red-600">{error}</div>
+                ) : !Array.isArray(messages) || messages.length === 0 ? (
+                  <div className="text-center text-gray-600">
+                    Tidak ada pesan
+                  </div>
+                ) : (
+                  messages.map((message) => (
                     <div
+                      key={message.id}
                       className={cn(
-                        "max-w-xs lg:max-w-md px-4 py-2 rounded-lg",
-                        message.isMe
-                          ? "bg-blue-400 text-white"
-                          : "bg-gray-100 text-gray-900",
+                        "flex",
+                        message.is_mine ? "justify-end" : "justify-start"
                       )}
                     >
-                      <p className="text-sm">{message.content}</p>
-                      <p
+                      <div
                         className={cn(
-                          "text-xs mt-1",
-                          message.isMe ? "text-blue-100" : "text-gray-500",
+                          "max-w-xs lg:max-w-md px-4 py-2 rounded-lg",
+                          message.is_mine
+                            ? "bg-blue-400 text-white"
+                            : "bg-gray-100 text-gray-900"
                         )}
                       >
-                        {message.time}
-                      </p>
+                        <p className="text-sm">{message.message_content}</p>
+                        <p
+                          className={cn(
+                            "text-xs mt-1",
+                            message.is_mine ? "text-blue-100" : "text-gray-500"
+                          )}
+                        >
+                          {message.message_created_at
+                            ? new Date(
+                                message.message_created_at
+                              ).toLocaleTimeString("id-ID", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Fixed Message Input */}
               <div className="flex-shrink-0 border-t border-gray-200 p-4 bg-white">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder="Ketik pesan..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleSendMessage()
-                      }
-                    />
+                {selectedConversation ? (
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="Ketik pesan..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleSendMessage()
+                        }
+                      />
+                    </div>
+                    <Button variant="ghost" size="icon">
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                    <Button onClick={handleSendMessage} size="icon">
+                      <Send className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <Smile className="h-4 w-4" />
-                  </Button>
-                  <Button onClick={handleSendMessage} size="icon">
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="text-center text-gray-600">
+                    Pilih percakapan untuk mengirim pesan
+                  </div>
+                )}
               </div>
             </div>
           </div>
